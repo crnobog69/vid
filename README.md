@@ -24,6 +24,10 @@ git clone https://github.com/crnobog69/vid.git
 
    First copy `docker-compose.yml.example` to `docker-compose.yml`
 
+   ```bash
+   cp docker-compose.yml.example docker-compose.yml
+   ```
+
    Then change the environment as in Configuration section.
    
    After that you can start:
@@ -43,6 +47,10 @@ git clone https://github.com/crnobog69/vid.git
 3. **Stop:**
    ```bash
    docker-compose down
+   ```
+
+   ```bash
+   sudo docker compose down
    ```
 
 ### Local Development
