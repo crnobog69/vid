@@ -23,7 +23,9 @@ git clone https://github.com/crnobog69/vid.git
 ```
 
    First copy `docker-compose.yml.example` to `docker-compose.yml`
+
    Then change the environment as in Configuration section.
+   
    After that you can start:
 
    ```bash
