@@ -26,13 +26,13 @@ git clone https://github.com/crnobog69/vid.git
    Then change the environment as in Configuration section.
    After that you can start:
 
-      ```bash
-      docker compose up -d
-      ```
+   ```bash
+   docker compose up -d
+   ```
 
-      ```bash
-      sudo docker compose ud -d
-      ```
+   ```bash
+   sudo docker compose ud -d
+   ```
 
 2. **Access:**
    - App: http://localhost:13888
