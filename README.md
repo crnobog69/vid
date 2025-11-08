@@ -123,4 +123,4 @@ Features:
 
 ---
 
-**Built for vid.crnbg.org**
+[**Built for vid.crnbg.org**](https://vid.crnbg.org)
