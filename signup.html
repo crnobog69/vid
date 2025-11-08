@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрација - vid</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a6e3a1' stroke-width='2'><path d='M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0'/><circle cx='12' cy='12' r='3'/></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e1e2e;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: transparent;
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .logo {
+            font-size: 42px;
+            font-weight: 700;
+            text-align: center;
+            color: #cdd6f4;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #bac2de;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #bac2de;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 16px;
+            background: #1e1e2e;
+            border: 2px solid #45475a;
+            border-radius: 12px;
+            color: #cdd6f4;
+            font-size: 15px;
+            font-family: 'Space Grotesk', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        input::placeholder {
+            color: #7f849c;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #a6e3a1;
+            background: #181825;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: #a6e3a1;
+            color: #1e1e2e;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: 'Space Grotesk', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: #94e2d5;
+        }
+
+        .error {
+            background: #f38ba8;
+            color: #1e1e2e;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .link-text {
+            text-align: center;
+            color: #bac2de;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        .link-text a {
+            color: #a6e3a1;
+            text-decoration: none;
+        }
+
+        .link-text a:hover {
+            text-decoration: underline;
+        }
+
+        .disabled-message {
+            background: #f9e2af;
+            color: #1e1e2e;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="logo">vid</h1>
+        <p class="subtitle">Направите нови налог</p>
+
+        <div class="error" id="error"></div>
+
+        <div id="signupForm">
+            <form onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label for="username">Корисничко име</label>
+                    <input type="text" id="username" placeholder="korisnik123" required minlength="3">
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Е-пошта</label>
+                    <input type="email" id="email" placeholder="ime@primer.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Лозинка</label>
+                    <input type="password" id="password" placeholder="••••••••" required minlength="6">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Потврдите лозинку</label>
+                    <input type="password" id="confirmPassword" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn">Региструј се</button>
+            </form>
+        </div>
+
+        <p class="link-text">
+            Већ имате налог? <a href="/login">Пријавите се</a><br>
+            <a href="/">← Назад на почетну</a>
+        </p>
+    </div>
+
+    <script>
+        // Check if signup is enabled
+        fetch('/api/config')
+            .then(res => res.json())
+            .then(data => {
+                if (!data.userSignup) {
+                    document.getElementById('signupForm').innerHTML = 
+                        '<div class="disabled-message">Регистрација је тренутно онемогућена</div>';
+                }
+            })
+            .catch(err => console.error('Error checking config:', err));
+
+        async function handleSignup(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('error');
+
+            if (password !== confirmPassword) {
+                errorDiv.textContent = 'Лозинке се не подударају';
+                errorDiv.classList.add('active');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                if (!response.ok) {
+                    const error = await response.text();
+                    errorDiv.textContent = error;
+                    errorDiv.classList.add('active');
+                    return;
+                }
+
+                // Success - redirect to login
+                window.location.href = '/login?registered=true';
+            } catch (error) {
+                errorDiv.textContent = 'Грешка приликом регистрације';
+                errorDiv.classList.add('active');
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

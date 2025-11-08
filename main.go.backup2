@@ -1,0 +1,446 @@
+package main
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"database/sql"
+	"embed"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"log"
+	"math/big"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/go-redis/redis/v8"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+//go:embed vid.html
+var content embed.FS
+
+var ctx = context.Background()
+
+type Database struct {
+	db    *sql.DB
+	redis *redis.Client
+}
+
+type Config struct {
+	Port           string
+	Domain         string
+	DBPath         string
+	RedisAddr      string
+	RedisPassword  string
+	RedisDB        int
+	AdminEmail     string
+	AdminPassword  string
+	UserSignup     bool
+	UseRedis       bool
+}
+
+func loadConfig() *Config {
+	config := &Config{
+		Port:          getEnv("PORT", "13888"),
+		Domain:        getEnv("DOMAIN", "vid.crnbg.org"),
+		DBPath:        getEnv("DB_PATH", "./vid.db"),
+		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
+		RedisPassword: getEnv("REDIS_PASSWORD", ""),
+		RedisDB:       getEnvInt("REDIS_DB", 0),
+		AdminEmail:    getEnv("ADMIN_EMAIL", "admin@vid.crnbg.org"),
+		AdminPassword: getEnv("ADMIN_PASSWORD", "changeme"),
+		UserSignup:    getEnvBool("USER_SIGNUP", false),
+		UseRedis:      getEnvBool("USE_REDIS", true),
+	}
+	return config
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolVal, err := strconv.ParseBool(value); err == nil {
+			return boolVal
+		}
+	}
+	return defaultValue
+}
+
+func NewDatabase(config *Config) (*Database, error) {
+	db, err := sql.Open("sqlite3", config.DBPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create tables
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT UNIQUE NOT NULL,
+			email TEXT UNIQUE NOT NULL,
+			password_hash TEXT NOT NULL,
+			is_admin BOOLEAN DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS links (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			short_code TEXT UNIQUE NOT NULL,
+			original_url TEXT NOT NULL,
+			user_id INTEGER,
+			clicks INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_short_code ON links(short_code);
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create admin user if doesn't exist
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM users WHERE email = ?", config.AdminEmail).Scan(&count)
+	if count == 0 {
+		passwordHash := hashPassword(config.AdminPassword)
+		_, err = db.Exec(
+			"INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)",
+			"admin", config.AdminEmail, passwordHash, true,
+		)
+		if err != nil {
+			log.Printf("Warning: Could not create admin user: %v", err)
+		} else {
+			log.Printf("Admin user created with email: %s", config.AdminEmail)
+		}
+	}
+
+	var rdb *redis.Client
+	if config.UseRedis {
+		rdb = redis.NewClient(&redis.Options{
+			Addr:     config.RedisAddr,
+			Password: config.RedisPassword,
+			DB:       config.RedisDB,
+		})
+
+		// Test Redis connection
+		if err := rdb.Ping(ctx).Err(); err != nil {
+			log.Printf("Warning: Redis connection failed: %v. Falling back to SQLite only.", err)
+			rdb = nil
+		} else {
+			log.Printf("Redis connected at %s", config.RedisAddr)
+		}
+	}
+
+	return &Database{db: db, redis: rdb}, nil
+}
+
+func hashPassword(password string) string {
+	hash := sha256.Sum256([]byte(password))
+	return hex.EncodeToString(hash[:])
+}
+
+func (d *Database) SaveLink(shortCode, url string, userID *int) error {
+	// Save to SQLite
+	_, err := d.db.Exec(
+		"INSERT INTO links (short_code, original_url, user_id) VALUES (?, ?, ?)",
+		shortCode, url, userID,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Save to Redis if available
+	if d.redis != nil {
+		d.redis.Set(ctx, "link:"+shortCode, url, 0)
+		d.redis.Set(ctx, "clicks:"+shortCode, 0, 0)
+	}
+
+	return nil
+}
+
+func (d *Database) GetLink(shortCode string) (string, bool) {
+	var url string
+
+	// Try Redis first if available
+	if d.redis != nil {
+		url, err := d.redis.Get(ctx, "link:"+shortCode).Result()
+		if err == nil {
+			// Increment clicks in Redis
+			d.redis.Incr(ctx, "clicks:"+shortCode)
+			// Also update SQLite in background
+			go d.db.Exec("UPDATE links SET clicks = clicks + 1 WHERE short_code = ?", shortCode)
+			return url, true
+		}
+	}
+
+	// Fallback to SQLite
+	err := d.db.QueryRow("SELECT original_url FROM links WHERE short_code = ?", shortCode).Scan(&url)
+	if err != nil {
+		return "", false
+	}
+
+	// Increment click count
+	d.db.Exec("UPDATE links SET clicks = clicks + 1 WHERE short_code = ?", shortCode)
+
+	// Cache in Redis if available
+	if d.redis != nil {
+		d.redis.Set(ctx, "link:"+shortCode, url, 0)
+	}
+
+	return url, true
+}
+
+func (d *Database) GetLinkStats(shortCode string) (clicks int64, createdAt time.Time, err error) {
+	// Try Redis first for clicks
+	if d.redis != nil {
+		clicks, _ = d.redis.Get(ctx, "clicks:"+shortCode).Int64()
+	}
+
+	// Get from SQLite
+	err = d.db.QueryRow(
+		"SELECT clicks, created_at FROM links WHERE short_code = ?",
+		shortCode,
+	).Scan(&clicks, &createdAt)
+
+	return
+}
+
+func (d *Database) ShortCodeExists(shortCode string) bool {
+	// Check Redis first if available
+	if d.redis != nil {
+		exists, err := d.redis.Exists(ctx, "link:"+shortCode).Result()
+		if err == nil && exists > 0 {
+			return true
+		}
+	}
+
+	// Check SQLite
+	var count int
+	d.db.QueryRow("SELECT COUNT(*) FROM links WHERE short_code = ?", shortCode).Scan(&count)
+	return count > 0
+}
+
+func (d *Database) Close() error {
+	if d.redis != nil {
+		d.redis.Close()
+	}
+	return d.db.Close()
+}
+
+type ShortenRequest struct {
+	URL        string  `json:"url"`
+	CustomCode *string `json:"customCode,omitempty"`
+}
+
+type ShortenResponse struct {
+	ShortURL string `json:"shortUrl"`
+	Code     string `json:"code"`
+}
+
+type StatsResponse struct {
+	ShortCode string `json:"shortCode"`
+	Clicks    int64  `json:"clicks"`
+	CreatedAt string `json:"createdAt"`
+}
+
+var database *Database
+var appConfig *Config
+
+func main() {
+	appConfig = loadConfig()
+
+	var err error
+	database, err = NewDatabase(appConfig)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer database.Close()
+
+	log.Printf("Starting URL Shortener on port %s", appConfig.Port)
+	log.Printf("Domain: %s", appConfig.Domain)
+	log.Printf("Database: %s", appConfig.DBPath)
+	log.Printf("Redis: %s (enabled: %v)", appConfig.RedisAddr, appConfig.UseRedis)
+	log.Printf("User Signup: %v", appConfig.UserSignup)
+	log.Printf("Admin Email: %s", appConfig.AdminEmail)
+
+	http.HandleFunc("/", handleIndex)
+	http.HandleFunc("/api/shorten", handleShorten)
+	http.HandleFunc("/api/stats/", handleStats)
+	http.HandleFunc("/r/", handleRedirect)
+
+	log.Fatal(http.ListenAndServe(":"+appConfig.Port, nil))
+}
+
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	// Serve the HTML for the root path
+	if r.URL.Path == "/" {
+		data, err := content.ReadFile("vid.html")
+		if err != nil {
+			http.Error(w, "Error reading file", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(data)
+		return
+	}
+
+	// For any other path, try to redirect
+	shortCode := strings.TrimPrefix(r.URL.Path, "/")
+	if url, exists := database.GetLink(shortCode); exists {
+		http.Redirect(w, r, url, http.StatusMovedPermanently)
+		return
+	}
+
+	http.NotFound(w, r)
+}
+
+func handleShorten(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req ShortenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.URL == "" {
+		http.Error(w, "URL is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate URL format
+	if !strings.HasPrefix(req.URL, "http://") && !strings.HasPrefix(req.URL, "https://") {
+		http.Error(w, "URL must start with http:// or https://", http.StatusBadRequest)
+		return
+	}
+
+	var shortCode string
+
+	// Check if custom code is provided
+	if req.CustomCode != nil && *req.CustomCode != "" {
+		customCode := *req.CustomCode
+		
+		// Validate custom code (alphanumeric, 3-20 chars)
+		if len(customCode) < 3 || len(customCode) > 20 {
+			http.Error(w, "Custom code must be between 3 and 20 characters", http.StatusBadRequest)
+			return
+		}
+		
+		if !isAlphanumeric(customCode) {
+			http.Error(w, "Custom code must contain only letters and numbers", http.StatusBadRequest)
+			return
+		}
+
+		// Check if custom code already exists
+		if database.ShortCodeExists(customCode) {
+			http.Error(w, "Custom code already taken", http.StatusConflict)
+			return
+		}
+
+		shortCode = customCode
+	} else {
+		// Generate random short code
+		shortCode = generateShortCode()
+		// Ensure uniqueness
+		for database.ShortCodeExists(shortCode) {
+			shortCode = generateShortCode()
+		}
+	}
+
+	// Save to database (userID is nil for anonymous users)
+	if err := database.SaveLink(shortCode, req.URL, nil); err != nil {
+		http.Error(w, "Failed to save link", http.StatusInternalServerError)
+		log.Printf("Error saving link: %v", err)
+		return
+	}
+
+	shortURL := fmt.Sprintf("https://%s/%s", appConfig.Domain, shortCode)
+
+	response := ShortenResponse{
+		ShortURL: shortURL,
+		Code:     shortCode,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func handleStats(w http.ResponseWriter, r *http.Request) {
+	shortCode := strings.TrimPrefix(r.URL.Path, "/api/stats/")
+
+	if shortCode == "" {
+		http.Error(w, "Short code required", http.StatusBadRequest)
+		return
+	}
+
+	clicks, createdAt, err := database.GetLinkStats(shortCode)
+	if err != nil {
+		http.Error(w, "Link not found", http.StatusNotFound)
+		return
+	}
+
+	response := StatsResponse{
+		ShortCode: shortCode,
+		Clicks:    clicks,
+		CreatedAt: createdAt.Format("2006-01-02 15:04:05"),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func handleRedirect(w http.ResponseWriter, r *http.Request) {
+	shortCode := strings.TrimPrefix(r.URL.Path, "/r/")
+
+	if url, exists := database.GetLink(shortCode); exists {
+		http.Redirect(w, r, url, http.StatusMovedPermanently)
+		return
+	}
+
+	http.NotFound(w, r)
+}
+
+func generateShortCode() string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	const length = 6
+
+	result := make([]byte, length)
+	for i := range result {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		result[i] = charset[num.Int64()]
+	}
+
+	return string(result)
+}
+
+func isAlphanumeric(s string) bool {
+	for _, r := range s {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')) {
+			return false
+		}
+	}
+	return true
+}

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мој панел - vid</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a6e3a1' stroke-width='2'><path d='M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0'/><circle cx='12' cy='12' r='3'/></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e1e2e;
+            min-height: 100vh;
+            padding: 20px;
+            color: #cdd6f4;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: 700;
+            color: #cdd6f4;
+            letter-spacing: 2px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .user-info {
+            color: #bac2de;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: #45475a;
+            color: #cdd6f4;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Space Grotesk', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: #585b70;
+        }
+
+        .btn-primary {
+            background: #a6e3a1;
+            color: #1e1e2e;
+        }
+
+        .btn-primary:hover {
+            background: #94e2d5;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: #313244;
+            border: 2px solid #45475a;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .stat-label {
+            color: #bac2de;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            color: #a6e3a1;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .section {
+            background: #313244;
+            border: 2px solid #45475a;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #cdd6f4;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            background: #45475a;
+            color: #bac2de;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #45475a;
+            color: #cdd6f4;
+        }
+
+        tr:hover {
+            background: #45475a;
+        }
+
+        .link-preview {
+            color: #89b4fa;
+            text-decoration: none;
+            font-family: monospace;
+        }
+
+        .link-preview:hover {
+            text-decoration: underline;
+        }
+
+        .url-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #7f849c;
+            font-size: 13px;
+        }
+
+        .delete-btn {
+            background: #f38ba8;
+            color: #1e1e2e;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .delete-btn:hover {
+            background: #eba0ac;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7f849c;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            table {
+                font-size: 14px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+
+            .url-cell {
+                max-width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="logo">vid - Мој панел</h1>
+        <div class="header-actions">
+            <span class="user-info" id="userInfo">Учитавање...</span>
+            <a href="/" class="btn btn-primary">Почетна</a>
+            <button class="btn" onclick="logout()">Одјава</button>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Моји линкови</div>
+            <div class="stat-value" id="myLinks">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Укупно кликова</div>
+            <div class="stat-value" id="myClicks">0</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">Моји скраћени линкови</h2>
+        <table id="linksTableContainer">
+            <thead>
+                <tr>
+                    <th>Кратак код</th>
+                    <th>Оригинални URL</th>
+                    <th>Кликови</th>
+                    <th>Креирано</th>
+                    <th>Акције</th>
+                </tr>
+            </thead>
+            <tbody id="linksTable">
+                <tr><td colspan="5" style="text-align: center; color: #7f849c;">Учитавање...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadUserData() {
+            try {
+                const response = await fetch('/api/user/links');
+                if (!response.ok) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await response.json();
+                
+                document.getElementById('userInfo').textContent = `Пријављени као: ${data.username}`;
+                document.getElementById('myLinks').textContent = data.links.length;
+                
+                const totalClicks = data.links.reduce((sum, link) => sum + link.clicks, 0);
+                document.getElementById('myClicks').textContent = totalClicks;
+
+                const linksTable = document.getElementById('linksTable');
+                
+                if (data.links.length === 0) {
+                    linksTable.innerHTML = `
+                        <tr>
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                    </svg>
+                                    <div style="font-size: 18px; margin-bottom: 10px;">Још увек немате скраћених линкова</div>
+                                    <div>Идите на <a href="/" style="color: #a6e3a1;">почетну страну</a> да направите свој први линк</div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    linksTable.innerHTML = data.links.map(link => `
+                        <tr>
+                            <td><a href="/${link.shortCode}" target="_blank" class="link-preview">${link.shortCode}</a></td>
+                            <td class="url-cell" title="${link.originalUrl}">${link.originalUrl}</td>
+                            <td>${link.clicks}</td>
+                            <td>${new Date(link.createdAt).toLocaleString('sr-RS')}</td>
+                            <td><button class="delete-btn" onclick="deleteLink('${link.shortCode}')">Обриши</button></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                alert('Грешка приликом учитавања података');
+            }
+        }
+
+        async function deleteLink(shortCode) {
+            if (!confirm(`Да ли сте сигурни да желите да обришете линк: ${shortCode}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/user/links/${shortCode}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadUserData();
+                } else {
+                    alert('Грешка приликом брисања линка');
+                }
+            } catch (error) {
+                console.error('Error deleting link:', error);
+                alert('Грешка приликом брисања линка');
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/login';
+            } catch (error) {
+                console.error('Error logging out:', error);
+            }
+        }
+
+        loadUserData();
+    </script>
+</body>
+</html>

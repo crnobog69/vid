@@ -1,0 +1,35 @@
+# Environment files
+*.env
+!.env.example
+
+# Binaries
+main
+vid
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Data directories
+data/
+/data
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Go
+*.test
+*.out
+vendor/

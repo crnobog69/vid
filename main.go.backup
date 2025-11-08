@@ -1,0 +1,224 @@
+package main
+
+import (
+	"crypto/rand"
+	"database/sql"
+	"embed"
+	"encoding/json"
+	"fmt"
+	"log"
+	"math/big"
+	"net/http"
+	"os"
+	"strings"
+
+	_ "github.com/mattn/go-sqlite3"
+)
+
+//go:embed vid.html
+var content embed.FS
+
+type Database struct {
+	db *sql.DB
+}
+
+func NewDatabase(dbPath string) (*Database, error) {
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create tables
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT UNIQUE NOT NULL,
+			email TEXT UNIQUE NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS links (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			short_code TEXT UNIQUE NOT NULL,
+			original_url TEXT NOT NULL,
+			user_id INTEGER,
+			clicks INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_short_code ON links(short_code);
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Database{db: db}, nil
+}
+
+func (d *Database) SaveLink(shortCode, url string, userID *int) error {
+	_, err := d.db.Exec(
+		"INSERT INTO links (short_code, original_url, user_id) VALUES (?, ?, ?)",
+		shortCode, url, userID,
+	)
+	return err
+}
+
+func (d *Database) GetLink(shortCode string) (string, bool) {
+	var url string
+	err := d.db.QueryRow("SELECT original_url FROM links WHERE short_code = ?", shortCode).Scan(&url)
+	if err != nil {
+		return "", false
+	}
+
+	// Increment click count
+	d.db.Exec("UPDATE links SET clicks = clicks + 1 WHERE short_code = ?", shortCode)
+
+	return url, true
+}
+
+func (d *Database) Close() error {
+	return d.db.Close()
+}
+
+type ShortenRequest struct {
+	URL string `json:"url"`
+}
+
+type ShortenResponse struct {
+	ShortURL string `json:"shortUrl"`
+	Code     string `json:"code"`
+}
+
+var database *Database
+
+func main() {
+	// Initialize database
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./vid.db"
+	}
+
+	var err error
+	database, err = NewDatabase(dbPath)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer database.Close()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "13888"
+	}
+
+	domain := os.Getenv("DOMAIN")
+	if domain == "" {
+		domain = "localhost:" + port
+	}
+
+	log.Printf("Starting URL Shortener on port %s", port)
+	log.Printf("Domain: %s", domain)
+	log.Printf("Database: %s", dbPath)
+
+	http.HandleFunc("/", handleIndex)
+	http.HandleFunc("/api/shorten", handleShorten)
+	http.HandleFunc("/r/", handleRedirect)
+
+	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	// Serve the HTML for the root path
+	if r.URL.Path == "/" {
+		data, err := content.ReadFile("vid.html")
+		if err != nil {
+			http.Error(w, "Error reading file", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(data)
+		return
+	}
+
+	// For any other path, try to redirect
+	shortCode := strings.TrimPrefix(r.URL.Path, "/")
+	if url, exists := database.GetLink(shortCode); exists {
+		http.Redirect(w, r, url, http.StatusMovedPermanently)
+		return
+	}
+
+	http.NotFound(w, r)
+}
+
+func handleShorten(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req ShortenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.URL == "" {
+		http.Error(w, "URL is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate URL format
+	if !strings.HasPrefix(req.URL, "http://") && !strings.HasPrefix(req.URL, "https://") {
+		http.Error(w, "URL must start with http:// or https://", http.StatusBadRequest)
+		return
+	}
+
+	// Generate short code
+	shortCode := generateShortCode()
+	
+	// Save to database (userID is nil for anonymous users)
+	if err := database.SaveLink(shortCode, req.URL, nil); err != nil {
+		http.Error(w, "Failed to save link", http.StatusInternalServerError)
+		log.Printf("Error saving link: %v", err)
+		return
+	}
+
+	domain := os.Getenv("DOMAIN")
+	if domain == "" {
+		domain = r.Host
+	}
+
+	shortURL := fmt.Sprintf("https://%s/%s", domain, shortCode)
+
+	response := ShortenResponse{
+		ShortURL: shortURL,
+		Code:     shortCode,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func handleRedirect(w http.ResponseWriter, r *http.Request) {
+	shortCode := strings.TrimPrefix(r.URL.Path, "/r/")
+
+	if url, exists := database.GetLink(shortCode); exists {
+		http.Redirect(w, r, url, http.StatusMovedPermanently)
+		return
+	}
+
+	http.NotFound(w, r)
+}
+
+func generateShortCode() string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	const length = 6
+
+	result := make([]byte, length)
+	for i := range result {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		result[i] = charset[num.Int64()]
+	}
+
+	return string(result)
+}
