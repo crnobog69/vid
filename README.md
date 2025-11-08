@@ -18,17 +18,21 @@ Modern URL shortener with user management, Redis caching, and admin panel. Built
 
 1. **Start everything:**
 
-First copy `docker-compose.yml.example` to `docker-compose.yml`
-Then change the environment as in Configuration section.
-After that you can start:
+```bash
+git clone https://github.com/crnobog69/vid.git
+```
 
-   ```bash
-   docker compose up -d
-   ```
+   First copy `docker-compose.yml.example` to `docker-compose.yml`
+   Then change the environment as in Configuration section.
+   After that you can start:
 
-   ```bash
-   sudo docker compose ud -d
-   ```
+      ```bash
+      docker compose up -d
+      ```
+
+      ```bash
+      sudo docker compose ud -d
+      ```
 
 2. **Access:**
    - App: http://localhost:13888
@@ -134,6 +138,20 @@ Features:
 - Change user passwords
 - Create new users
 - Platform statistics
+
+## Update
+
+Stop the containers:
+
+```bash
+sudo docker compose down
+```
+
+Then:
+
+```bash
+git pull
+```
 
 ---
 
