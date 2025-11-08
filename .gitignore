@@ -33,3 +33,6 @@ Thumbs.db
 *.test
 *.out
 vendor/
+
+# Docker
+docker-compose.yml
