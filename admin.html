@@ -398,6 +398,33 @@
                 max-width: 100px;
             }
         }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #7f849c;
+            font-size: 14px;
+            margin-top: 40px;
+        }
+
+        .footer a {
+            color: #a6e3a1;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer a:hover {
+            color: #94e2d5;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .footer {
+                font-size: 12px;
+                padding: 15px;
+                margin-top: 30px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -675,5 +702,9 @@
         // Load data on page load
         loadAdminData();
     </script>
+
+    <footer class="footer">
+        Made by <a href="https://github.com/crnobog69/vid" target="_blank" rel="noopener noreferrer">crnobog</a>
+    </footer>
 </body>
 </html>

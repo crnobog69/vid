@@ -256,7 +256,7 @@
 
         .custom-url-toggle {
             margin-top: 16px;
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 10px;
             color: #bac2de;
@@ -268,6 +268,7 @@
             border: 2px solid #45475a;
             transition: all 0.3s ease;
             user-select: none;
+            width: 100%;
         }
 
         .custom-url-toggle:hover {
@@ -545,6 +546,32 @@
                 font-size: 13px;
             }
         }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #7f849c;
+            font-size: 14px;
+            margin-top: auto;
+        }
+
+        .footer a {
+            color: #a6e3a1;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer a:hover {
+            color: #94e2d5;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .footer {
+                font-size: 12px;
+                padding: 15px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -636,6 +663,10 @@
         </div>
     </div>
         </div>
+
+        <footer class="footer">
+            Made by <a href="https://github.com/crnobog69/vid" target="_blank" rel="noopener noreferrer">crnobog</a>
+        </footer>
     </div>
 
     <script>
@@ -673,7 +704,6 @@
                             <path d="M6.376 18.91a6 6 0 0 1 11.249.003"/>
                             <circle cx="12" cy="11" r="4"/>
                         </svg>
-                        <span>Админ</span>
                     </a>
                     <button class="user-btn" onclick="logout()">
                         <svg class="user-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -681,7 +711,6 @@
                             <path d="M21 12H9"/>
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                         </svg>
-                        <span>Одјава</span>
                     </button>
                 `;
             } else {
