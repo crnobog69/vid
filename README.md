@@ -162,6 +162,12 @@ Then:
 ```bash
 git pull
 ```
+After that:
+
+```bash
+sudo docker compose up -d --build
+```
+
 
 ---
 
