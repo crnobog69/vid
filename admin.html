@@ -247,17 +247,155 @@
             background: #94e2d5;
         }
 
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+            }
+
+            .section {
+                padding: 20px;
+            }
+
+            .section-title {
+                font-size: 20px;
+            }
+        }
+
         @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .logo {
+                font-size: 24px;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .user-info {
+                font-size: 12px;
+                max-width: 120px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 30px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-value {
+                font-size: 28px;
+            }
+
+            .section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .section-title {
+                font-size: 18px;
+                margin-bottom: 15px;
+            }
+
             table {
-                font-size: 14px;
+                font-size: 12px;
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
             }
 
             th, td {
-                padding: 8px;
+                padding: 8px 6px;
             }
 
             .url-cell {
-                max-width: 150px;
+                max-width: 120px;
+            }
+
+            .delete-btn,
+            .edit-btn {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .add-user-form {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .logo {
+                font-size: 20px;
+            }
+
+            .header-actions {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .btn {
+                font-size: 11px;
+                padding: 6px 10px;
+            }
+
+            .stat-label {
+                font-size: 12px;
+            }
+
+            .stat-value {
+                font-size: 24px;
+            }
+
+            .section {
+                padding: 12px;
+                border-radius: 8px;
+            }
+
+            .section-title {
+                font-size: 16px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th, td {
+                padding: 6px 4px;
+            }
+
+            .url-cell {
+                max-width: 100px;
             }
         }
     </style>

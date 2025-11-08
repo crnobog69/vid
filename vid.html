@@ -423,18 +423,126 @@
             font-weight: 600;
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 15px 20px;
+                justify-content: center;
+            }
+
+            .user-menu {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .user-btn {
+                font-size: 13px;
+                padding: 8px 12px;
+            }
+
+            .user-icon {
+                width: 16px;
+                height: 16px;
+            }
+
             .container {
                 padding: 30px 20px;
+            }
+
+            .logo {
+                font-size: 36px;
+            }
+
+            .subtitle {
+                font-size: 14px;
+            }
+
+            input {
+                padding: 14px 14px 14px 44px;
+                font-size: 14px;
+            }
+
+            .btn {
+                padding: 14px;
+                font-size: 15px;
             }
 
             .result-url {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 10px;
             }
 
-            .copy-btn {
+            .shortened-url {
+                font-size: 16px;
+            }
+
+            .copy-btn,
+            .stats-btn {
                 width: 100%;
+                justify-content: center;
+            }
+
+            .custom-url-toggle {
+                font-size: 13px;
+                padding: 8px 12px;
+            }
+
+            .custom-url-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+
+            .custom-url-wrapper .domain-prefix {
+                font-size: 13px;
+            }
+
+            .custom-url-wrapper input {
+                padding: 14px;
+            }
+
+            .stats-modal-content {
+                padding: 20px;
+                width: 95%;
+            }
+
+            .stats-modal-title {
+                font-size: 18px;
+            }
+
+            .stats-value {
+                font-size: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo {
+                font-size: 32px;
+            }
+
+            .subtitle {
+                font-size: 13px;
+                margin-bottom: 30px;
+            }
+
+            .container {
+                padding: 20px 15px;
+            }
+
+            .user-btn span {
+                display: none;
+            }
+
+            .user-info {
+                font-size: 12px;
+            }
+
+            .result-label {
+                font-size: 13px;
             }
         }
     </style>
