@@ -22,11 +22,9 @@ Modern URL shortener with user management, Redis caching, and admin panel. Built
    docker compose up -d
    ```
 
-or
-
-```bash
-sudo docker compose ud -d
-```
+   ```bash
+   sudo docker compose ud -d
+   ```
 
 2. **Access:**
    - App: http://localhost:13888
