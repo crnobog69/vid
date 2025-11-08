@@ -18,6 +18,10 @@ Modern URL shortener with user management, Redis caching, and admin panel. Built
 
 1. **Start everything:**
 
+First copy `docker-compose.yml.example` to `docker-compose.yml`
+Then change the environment as in Configuration section.
+After that you can start:
+
    ```bash
    docker compose up -d
    ```
@@ -71,6 +75,16 @@ USER_SIGNUP=true              # Allow new user registration
 REQUIRE_LOGIN=false           # Require login to use shortener
 ALLOW_ANONYMOUS_CUSTOM_LINKS=true  # Allow custom links without login
 ```
+
+Also change in Redis:
+
+```
+command: redis-server --requirepass
+```
+```
+test: ["CMD", "redis-cli", "-a", 
+```
+
 
 ## Environment Variables
 
